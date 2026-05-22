@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "Water_p2t"
 version = "1.0.0"
 authors = [
-  { name="WaterDog", email="3253260973@qq.com" }
+  { name="waterdog", email="3253260973@qq.com" }
 ]
 description = "一个简单高效的项目代码合并转txt工具，自动遵循.gitignore规则，支持去除空行"
 readme = "README.md"
@@ -15,6 +15,5 @@ dependencies = [
   "pathspec>=0.11.0"
 ]
 
-# 命令行入口：
 [project.scripts]
 water_p2t = "water_p2t:main"

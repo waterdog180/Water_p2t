@@ -12,4 +12,4 @@
 ## 安装方法
 ### 方法一：直接从GitHub安装（无需下载源码）
 ```bash
-pip install git+https://github.com/你的GitHub用户名/Water_p2t.git
+pip install git+https://github.com/waterdog180/Water_p2t.git
