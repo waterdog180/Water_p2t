@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Water_p2t"
-version = "1.2.1"  # 同步升级版本号
+version = "1.2.2"
 authors = [
   { name="waterdog", email="3253260973@qq.com" }
 ]
-description = "一个简单高效的项目代码合并转txt工具，自动遵循.gitignore规则，支持去除空行和项目结构输出"
+description = "一个简单高效的项目代码合并转txt工具，自动忽略隐藏文件，遵循.gitignore规则，支持去除空行和项目结构输出"
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
@@ -19,3 +19,7 @@ dependencies = [
 water_p2t = "water_p2t:main"
 wt_p2t = "water_p2t:main"
 WTp2t = "water_p2t:main"
+
+# 新增：明确声明单文件模块（解决可编辑模式导入错误）
+[tool.setuptools]
+py-modules = ["water_p2t"]

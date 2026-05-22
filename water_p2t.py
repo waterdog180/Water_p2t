@@ -2,7 +2,7 @@ import os
 import argparse
 from pathspec.gitignore import GitIgnoreSpec
 
-__version__ = "1.2.1"  # 版本号升级
+__version__ = "1.2.2"  # 版本号升级
 
 def build_tree_structure(root_dir: str, ignore_rules: list) -> tuple[list[str], int]:
     """
@@ -60,14 +60,14 @@ def build_tree_structure(root_dir: str, ignore_rules: list) -> tuple[list[str], 
 
 def water_p2t(
     root_dir: str = None, 
-    output_file: str = None,  # 改为None，内部动态设置默认值
+    output_file: str = None,
     remove_empty_lines: bool = True,
     include_readme: bool = False,
     struct_only: bool = False
 ):
     """
     Water_p2t - 项目代码合并工具
-    递归读取项目文件 + 遵循.gitignore过滤 + 自动去除空行 + 合并为TXT
+    递归读取项目文件 + 自动忽略所有隐藏文件 + 遵循.gitignore过滤 + 自动去除空行 + 合并为TXT
     
     Args:
         root_dir: 项目根目录，默认使用终端当前工作目录
@@ -80,12 +80,9 @@ def water_p2t(
     if root_dir is None:
         root_dir = os.getcwd()
     
-    # 动态设置默认输出文件名（核心修改1）
+    # 动态设置默认输出文件名
     if output_file is None:
-        if struct_only:
-            output_file = "项目代码结构.txt"
-        else:
-            output_file = "项目代码合集.txt"
+        output_file = "项目代码结构.txt" if struct_only else "项目代码合集.txt"
     
     # 转换为绝对路径，避免路径比较错误
     root_dir = os.path.abspath(root_dir)
@@ -96,7 +93,7 @@ def water_p2t(
     file_count = 0
     gitignore_spec = None
 
-    # 加载 .gitignore 规则
+    # 加载 .gitignore 规则（特殊保留：即使是隐藏文件也读取）
     gitignore_path = os.path.join(root_dir, ".gitignore")
     if os.path.exists(gitignore_path):
         try:
@@ -131,14 +128,14 @@ def water_p2t(
         file_ext = os.path.splitext(full_path)[-1].lower()
         return file_ext not in TARGET_EXTENSIONS
     
-    # 新增：全局屏蔽.git目录及其所有内容（核心修改2）
-    def ignore_git_dir(relative_path: str, full_path: str) -> bool:
-        # 规范化路径，避免不同系统路径分隔符问题
-        path_parts = os.path.normpath(relative_path).split(os.sep)
-        return ".git" in path_parts
+    # 新增：全局递归忽略所有隐藏文件/文件夹（.开头），仅保留.gitignore
+    def ignore_hidden_files(relative_path: str, full_path: str) -> bool:
+        basename = os.path.basename(full_path)
+        # 忽略所有以.开头的文件和文件夹
+        return basename.startswith(".")
     
     ignore_rules = [
-        ignore_git_dir,  # 放在最前面，优先过滤
+        ignore_hidden_files,  # 放在最前面，优先过滤所有隐藏文件
         ignore_output_file,
         ignore_root_readme,
         ignore_gitignore,
@@ -170,12 +167,17 @@ def water_p2t(
             # 正常合并文件内容
             for dir_path, _, file_names in os.walk(root_dir):
                 dir_path = os.path.abspath(dir_path)
+                dir_name = os.path.basename(dir_path)
                 
-                # 提前过滤.git目录，避免进入遍历（优化性能）
-                if ".git" in os.path.normpath(dir_path).split(os.sep):
+                # 提前过滤隐藏目录，避免进入遍历（大幅优化性能）
+                if dir_name.startswith("."):
                     continue
                 
                 for file_name in file_names:
+                    # 提前过滤隐藏文件
+                    if file_name.startswith(".") and file_name != ".gitignore":
+                        continue
+                    
                     file_ext = os.path.splitext(file_name)[-1].lower()
                     if file_ext not in TARGET_EXTENSIONS:
                         continue
@@ -184,7 +186,7 @@ def water_p2t(
                     full_path = os.path.join(dir_path, file_name)
                     relative_path = os.path.relpath(full_path, root_dir)
 
-                    # 应用忽略规则
+                    # 应用剩余忽略规则
                     if ignore_output_file(relative_path, full_path):
                         continue
                     if ignore_root_readme(relative_path, full_path):
@@ -228,6 +230,7 @@ def water_p2t(
             print("ℹ️  已自动去除所有空行")
         if not include_readme:
             print("ℹ️  已自动忽略根目录README文件（使用--include-readme可包含）")
+    print("ℹ️  已自动忽略所有隐藏文件和文件夹（仅保留.gitignore规则）")
     print(f"📄 输出文件：{output_abs_path}")
 
 def main():
@@ -255,7 +258,7 @@ def main():
     
     parser.add_argument(
         "-o", "--output", 
-        default=None,  # 改为None，内部动态设置
+        default=None,
         help="输出文件路径（普通模式默认：项目代码合集.txt，结构模式默认：项目代码结构.txt）"
     )
     
