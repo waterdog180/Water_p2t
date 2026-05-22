@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Water_p2t"
-version = "1.2.0"  # 同步升级版本号
+version = "1.2.1"  # 同步升级版本号
 authors = [
   { name="waterdog", email="3253260973@qq.com" }
 ]

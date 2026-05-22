@@ -2,7 +2,7 @@ import os
 import argparse
 from pathspec.gitignore import GitIgnoreSpec
 
-__version__ = "1.2.0"  # 版本号升级
+__version__ = "1.2.1"  # 版本号升级
 
 def build_tree_structure(root_dir: str, ignore_rules: list) -> tuple[list[str], int]:
     """
@@ -60,10 +60,10 @@ def build_tree_structure(root_dir: str, ignore_rules: list) -> tuple[list[str], 
 
 def water_p2t(
     root_dir: str = None, 
-    output_file: str = "项目代码合集.txt",
+    output_file: str = None,  # 改为None，内部动态设置默认值
     remove_empty_lines: bool = True,
     include_readme: bool = False,
-    struct_only: bool = False  # 新增：只输出项目结构
+    struct_only: bool = False
 ):
     """
     Water_p2t - 项目代码合并工具
@@ -71,7 +71,7 @@ def water_p2t(
     
     Args:
         root_dir: 项目根目录，默认使用终端当前工作目录
-        output_file: 输出文件路径，默认在当前工作目录生成"项目代码合集.txt"
+        output_file: 输出文件路径，普通模式默认"项目代码合集.txt"，结构模式默认"项目代码结构.txt"
         remove_empty_lines: 是否自动去除所有空行，默认开启
         include_readme: 是否包含根目录下的README文件，默认关闭
         struct_only: 只输出项目结构，不包含文件内容，默认关闭
@@ -79,6 +79,13 @@ def water_p2t(
     # 核心：默认使用终端当前工作目录
     if root_dir is None:
         root_dir = os.getcwd()
+    
+    # 动态设置默认输出文件名（核心修改1）
+    if output_file is None:
+        if struct_only:
+            output_file = "项目代码结构.txt"
+        else:
+            output_file = "项目代码合集.txt"
     
     # 转换为绝对路径，避免路径比较错误
     root_dir = os.path.abspath(root_dir)
@@ -124,7 +131,14 @@ def water_p2t(
         file_ext = os.path.splitext(full_path)[-1].lower()
         return file_ext not in TARGET_EXTENSIONS
     
+    # 新增：全局屏蔽.git目录及其所有内容（核心修改2）
+    def ignore_git_dir(relative_path: str, full_path: str) -> bool:
+        # 规范化路径，避免不同系统路径分隔符问题
+        path_parts = os.path.normpath(relative_path).split(os.sep)
+        return ".git" in path_parts
+    
     ignore_rules = [
+        ignore_git_dir,  # 放在最前面，优先过滤
         ignore_output_file,
         ignore_root_readme,
         ignore_gitignore,
@@ -156,6 +170,10 @@ def water_p2t(
             # 正常合并文件内容
             for dir_path, _, file_names in os.walk(root_dir):
                 dir_path = os.path.abspath(dir_path)
+                
+                # 提前过滤.git目录，避免进入遍历（优化性能）
+                if ".git" in os.path.normpath(dir_path).split(os.sep):
+                    continue
                 
                 for file_name in file_names:
                     file_ext = os.path.splitext(file_name)[-1].lower()
@@ -219,12 +237,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用示例：
-  water_p2t                    # 处理当前目录，自动忽略根目录README
+  water_p2t                    # 处理当前目录，输出到"项目代码合集.txt"
   water_p2t ./my_project       # 处理指定项目目录
   water_p2t -o 代码汇总.txt    # 指定输出文件名
   water_p2t --keep-empty       # 保留空行
   water_p2t --include-readme   # 包含根目录README文件
-  water_p2t --struct           # 只输出项目结构，不包含文件内容
+  water_p2t --struct           # 只输出项目结构，默认输出到"项目代码结构.txt"
         """
     )
     
@@ -237,8 +255,8 @@ def main():
     
     parser.add_argument(
         "-o", "--output", 
-        default="项目代码合集.txt",
-        help="输出文件路径（默认：项目代码合集.txt）"
+        default=None,  # 改为None，内部动态设置
+        help="输出文件路径（普通模式默认：项目代码合集.txt，结构模式默认：项目代码结构.txt）"
     )
     
     parser.add_argument(
