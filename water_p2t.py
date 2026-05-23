@@ -2,7 +2,7 @@ import os
 import argparse
 from pathspec.gitignore import GitIgnoreSpec
 
-__version__ = "1.2.2"  # 版本号升级
+__version__ = "1.2.2"
 
 def build_tree_structure(root_dir: str, ignore_rules: list) -> tuple[list[str], int]:
     """
@@ -20,6 +20,10 @@ def build_tree_structure(root_dir: str, ignore_rules: list) -> tuple[list[str], 
         nonlocal file_count
         basename = os.path.basename(path)
         relative_path = os.path.relpath(path, root_dir)
+        
+        # 提前过滤隐藏目录，避免不必要的递归（性能优化）
+        if os.path.isdir(path) and basename.startswith("."):
+            return
         
         # 应用所有忽略规则
         for rule in ignore_rules:
@@ -46,7 +50,8 @@ def build_tree_structure(root_dir: str, ignore_rules: list) -> tuple[list[str], 
             file_count += 1
     
     # 从根目录开始构建
-    tree.append(os.path.basename(root_dir) + "/")
+    root_name = os.path.basename(root_dir) or root_dir  # 修复根目录显示问题
+    tree.append(root_name + "/")
     entries = sorted(os.listdir(root_dir))
     dirs = [e for e in entries if os.path.isdir(os.path.join(root_dir, e))]
     files = [e for e in entries if os.path.isfile(os.path.join(root_dir, e))]
@@ -93,7 +98,7 @@ def water_p2t(
     file_count = 0
     gitignore_spec = None
 
-    # 加载 .gitignore 规则（特殊保留：即使是隐藏文件也读取）
+    # 加载 .gitignore 规则（即使是隐藏文件也读取，不影响输出）
     gitignore_path = os.path.join(root_dir, ".gitignore")
     if os.path.exists(gitignore_path):
         try:
@@ -128,10 +133,9 @@ def water_p2t(
         file_ext = os.path.splitext(full_path)[-1].lower()
         return file_ext not in TARGET_EXTENSIONS
     
-    # 新增：全局递归忽略所有隐藏文件/文件夹（.开头），仅保留.gitignore
+    # 全局递归忽略所有隐藏文件/文件夹（包括.gitignore）
     def ignore_hidden_files(relative_path: str, full_path: str) -> bool:
         basename = os.path.basename(full_path)
-        # 忽略所有以.开头的文件和文件夹
         return basename.startswith(".")
     
     ignore_rules = [
@@ -174,8 +178,8 @@ def water_p2t(
                     continue
                 
                 for file_name in file_names:
-                    # 提前过滤隐藏文件
-                    if file_name.startswith(".") and file_name != ".gitignore":
+                    # 提前过滤隐藏文件（与ignore_rules保持一致）
+                    if file_name.startswith("."):
                         continue
                     
                     file_ext = os.path.splitext(file_name)[-1].lower()
@@ -230,7 +234,7 @@ def water_p2t(
             print("ℹ️  已自动去除所有空行")
         if not include_readme:
             print("ℹ️  已自动忽略根目录README文件（使用--include-readme可包含）")
-    print("ℹ️  已自动忽略所有隐藏文件和文件夹（仅保留.gitignore规则）")
+    print("ℹ️  已自动忽略所有隐藏文件和文件夹（仅读取.gitignore规则）")
     print(f"📄 输出文件：{output_abs_path}")
 
 def main():
